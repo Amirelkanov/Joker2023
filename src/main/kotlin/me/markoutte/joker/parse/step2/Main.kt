@@ -14,6 +14,7 @@ import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
+// На этом шаге добавилась мутация
 @ExperimentalStdlibApi
 fun main(args: Array<String>) {
     val options = Options().apply {
@@ -46,12 +47,14 @@ fun main(args: Array<String>) {
     val seeds = mutableMapOf<Int, ByteArray>()
 
     while(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
+        // Берет рандомный сид из map (либо генерирует рандомный буфер с нуля) выше и мутирует его
         val buffer = seeds.values.randomOrNull(random)?.let(Random::mutate)
             ?: b.apply(random::nextBytes)
         val inputValues = generateInputValues(javaMethod, buffer)
         val inputValuesString = "${javaMethod.name}: ${inputValues.contentDeepToString()}"
         try {
             javaMethod.invoke(null, *inputValues).apply {
+                // Если метод валидный и уникальный, то добавим его в map выше
                 val seedId = buffer.contentHashCode()
                 if (seeds.putIfAbsent(seedId, buffer) == null) {
                     println("New seed added: ${seedId.toHexString()}")

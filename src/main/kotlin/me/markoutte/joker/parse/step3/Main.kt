@@ -16,6 +16,8 @@ import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
+
+// На этом шаге добавилась инструментация
 @ExperimentalStdlibApi
 fun main(args: Array<String>) {
     val options = Options().apply {
@@ -47,11 +49,12 @@ fun main(args: Array<String>) {
 
     val seeds = mutableMapOf<Int, ByteArray>()
 
-    while(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
+    while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
         val buffer = seeds.values.randomOrNull(random)?.let(Random::mutate)
             ?: b.apply(random::nextBytes)
         val inputValues = generateInputValues(javaMethod, buffer)
-        val inputValuesString = "${javaMethod.name}: ${inputValues.contentDeepToString()}"
+        val inputValuesString =
+            "${javaMethod.name}: ${inputValues.contentDeepToString()}"
         try {
             ExecutionPath.id = 0
             javaMethod.invoke(null, *inputValues).apply {
@@ -65,11 +68,13 @@ fun main(args: Array<String>) {
                 val errorName = e.targetException::class.simpleName
                 println("New error found: $errorName")
                 val path = Paths.get("report$errorName.txt")
-                Files.write(path, listOf(
-                    "${e.targetException.stackTraceToString()}\n",
-                    "$inputValuesString\n",
-                    "${buffer.contentToString()}\n",
-                ))
+                Files.write(
+                    path, listOf(
+                        "${e.targetException.stackTraceToString()}\n",
+                        "$inputValuesString\n",
+                        "${buffer.contentToString()}\n",
+                    )
+                )
                 Files.write(path, buffer, StandardOpenOption.APPEND)
                 println("Saved to: ${path.fileName}")
             }
@@ -78,16 +83,45 @@ fun main(args: Array<String>) {
 
     println("Seeds found: ${seeds.size}")
     println("Errors found: ${errors.size}")
-    println("Time elapsed: ${TimeUnit.NANOSECONDS.toMillis(
-        System.nanoTime() - start
-    )} ms")
+    println(
+        "Time elapsed: ${
+            TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - start
+            )
+        } ms"
+    )
 }
 
-fun loadJavaMethod(className: String, methodName: String, classPath: String): Method {
+
+/*
+* The diagram on 18th slide illustrates the flow of how Java class bytecode can be read,
+* transformed, and rewritten using ASM, a bytecode manipulation library.
+
+1. ClassReader: Reads the bytecode from a .class file and sends it to a ClassVisitor.
+2. ClassVisitor: Inspects the bytecode or performs transformations.
+*  It passes the transformed data to the ClassWriter.
+3. ClassWriter: Writes the transformed class bytecode and allows the output
+* to be obtained as a byte array (toByteArray()), which can be saved as a new .class file.
+* */
+
+
+// Этот шаг меняет loadJavaMethod след образом: трансформирует метод так,
+// чтобы для каждой строки был свой номер, а при проходе по методу,
+// суммируем номер каждой строки, формируя типа id нашего пути по методу (см. 19 слайд)
+fun loadJavaMethod(
+    className: String,
+    methodName: String,
+    classPath: String
+): Method {
     val libraries = classPath
         .split(File.pathSeparatorChar)
         .map { File(it).toURI().toURL() }
         .toTypedArray()
+
+
+    // The function checks if the name (class to be loaded) starts with
+    // the same package prefix as the class name held by the class loader (className)
+    // И если все ок, то этот класс трансформируется и загрузится
     val classLoader = object : URLClassLoader(libraries) {
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             return if (name.startsWith(className.substringBeforeLast('.'))) {
@@ -109,6 +143,7 @@ fun loadJavaMethod(className: String, methodName: String, classPath: String): Me
                 reader, ClassWriter.COMPUTE_MAXS or ClassWriter.COMPUTE_FRAMES, cl
             )
             val transformer = object : ClassVisitor(Opcodes.ASM9, writer) {
+                // Как раз тут говорит, чтобы при проходе id прибавлялся
                 override fun visitMethod(
                     access: Int,
                     name: String?,
@@ -147,9 +182,11 @@ fun loadJavaMethod(className: String, methodName: String, classPath: String): Me
     }
     val javaClass = classLoader.loadClass(className)
     val javaMethod = javaClass.declaredMethods.first {
-        "${it.name}(${it.parameterTypes.joinToString(",") {
-                c -> c.typeName
-        }})" == methodName
+        "${it.name}(${
+            it.parameterTypes.joinToString(",") { c ->
+                c.typeName
+            }
+        })" == methodName
     }
     return javaMethod
 }
@@ -163,16 +200,21 @@ fun generateInputValues(method: Method, data: ByteArray): Array<Any> {
             IntArray::class.java -> IntArray(buffer.get().toUByte().toInt()) {
                 buffer.get().toInt()
             }
-            String::class.java -> String(ByteArray(
-                buffer.get().toUByte().toInt() + 1
-            ) {
-                buffer.get()
-            }, Charset.forName("koi8"))
+
+            String::class.java -> String(
+                ByteArray(
+                    buffer.get().toUByte().toInt() + 1
+                ) {
+                    buffer.get()
+                }, Charset.forName("koi8")
+            )
+
             else -> error("Cannot create value of type ${parameterTypes[it]}")
         }
     }
 }
 
+// Наш путь выполнения
 object ExecutionPath {
     @JvmField
     var id: Int = 0

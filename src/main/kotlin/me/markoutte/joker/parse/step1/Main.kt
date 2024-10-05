@@ -14,6 +14,8 @@ import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
+
+// Начальный фаззер, в котором мы просто долбимся во вход
 fun main(args: Array<String>) {
     val options = Options().apply {
         addOption("c", "class", true, "Java class fully qualified name")

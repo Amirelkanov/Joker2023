@@ -1,4 +1,4 @@
-package me.markoutte.joker.parse
+package me.markoutte.joker.jsoupParse
 
 import me.markoutte.joker.helpers.ComputeClassWriter
 import org.apache.commons.cli.DefaultParser
@@ -14,12 +14,10 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
-import kotlin.io.path.writeBytes
 import kotlin.random.Random
 
 
-// Тут мы немного специализируем мутацию под json-вход,
-// т.к. фаззим мы как раз Json parse метод
+// На этом шаге добавилась инструментация
 @ExperimentalStdlibApi
 fun main(args: Array<String>) {
     val options = Options().apply {
@@ -49,10 +47,7 @@ fun main(args: Array<String>) {
         return
     }
 
-    // Как раз вот здесь
-    val seeds = mutableMapOf<Int, ByteArray>(
-        -1 to """{"name": { "arr": [1, 2, 3] }}""".asByteArray(b.size)!!
-    )
+    val seeds = mutableMapOf<Int, ByteArray>()
 
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
         val buffer = seeds.values.randomOrNull(random)?.let(Random::mutate)
@@ -97,6 +92,22 @@ fun main(args: Array<String>) {
     )
 }
 
+
+/*
+* The diagram on 18th slide illustrates the flow of how Java class bytecode can be read,
+* transformed, and rewritten using ASM, a bytecode manipulation library.
+
+1. ClassReader: Reads the bytecode from a .class file and sends it to a ClassVisitor.
+2. ClassVisitor: Inspects the bytecode or performs transformations.
+*  It passes the transformed data to the ClassWriter.
+3. ClassWriter: Writes the transformed class bytecode and allows the output
+* to be obtained as a byte array (toByteArray()), which can be saved as a new .class file.
+* */
+
+
+// Этот шаг меняет loadJavaMethod след образом: трансформирует метод так,
+// чтобы для каждой строки был свой номер, а при проходе по методу,
+// суммируем номер каждой строки, формируя типа id нашего пути по методу (см. 19 слайд)
 fun loadJavaMethod(
     className: String,
     methodName: String,
@@ -106,6 +117,11 @@ fun loadJavaMethod(
         .split(File.pathSeparatorChar)
         .map { File(it).toURI().toURL() }
         .toTypedArray()
+
+
+    // The function checks if the name (class to be loaded) starts with
+    // the same package prefix as the class name held by the class loader (className)
+    // И если все ок, то этот класс трансформируется и загрузится
     val classLoader = object : URLClassLoader(libraries) {
         override fun loadClass(name: String, resolve: Boolean): Class<*> {
             return if (name.startsWith(className.substringBeforeLast('.'))) {
@@ -127,6 +143,7 @@ fun loadJavaMethod(
                 reader, ClassWriter.COMPUTE_MAXS or ClassWriter.COMPUTE_FRAMES, cl
             )
             val transformer = object : ClassVisitor(Opcodes.ASM9, writer) {
+                // Как раз тут говорит, чтобы при проходе id прибавлялся
                 override fun visitMethod(
                     access: Int,
                     name: String?,
@@ -159,11 +176,7 @@ fun loadJavaMethod(
                 }
             }
             reader.accept(transformer, ClassReader.SKIP_FRAMES)
-            bytes = writer.toByteArray().also {
-                if (name == className) {
-                    Paths.get("Instrumented.class").writeBytes(it)
-                }
-            }
+            bytes = writer.toByteArray()
             return defineClass(name, bytes, 0, bytes.size)
         }
     }
@@ -201,6 +214,7 @@ fun generateInputValues(method: Method, data: ByteArray): Array<Any> {
     }
 }
 
+// Наш путь выполнения
 object ExecutionPath {
     @JvmField
     var id: Int = 0
@@ -214,21 +228,4 @@ fun Random.mutate(buffer: ByteArray): ByteArray = buffer.clone().apply {
     repeat(repeat) { i ->
         set(position + i, nextInt(from, until).toByte())
     }
-}
-
-fun Any.asByteArray(length: Int): ByteArray? = when (this) {
-    is String -> {
-        val bytes = toByteArray(Charset.forName("koi8"))
-        ByteArray(length) {
-            if (it == 0) {
-                (bytes.size - 1).toUByte().toByte()
-            } else if (it - 1 < bytes.size) {
-                bytes[it - 1]
-            } else {
-                0
-            }
-        }
-    }
-
-    else -> null
 }
