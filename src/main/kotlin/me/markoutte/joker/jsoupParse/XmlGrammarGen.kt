@@ -109,7 +109,7 @@ fun nonterminals(expansion: String): List<String> {
 fun grammarFuzzer(
     grammar: Grammar,
     startSymbol: String = "[start]",
-    maxNonterminals: Int = 40,
+    maxNonterminals: Int = 100,
     maxExpansionTrials: Int = 100,
     log: Boolean = false
 ): String {

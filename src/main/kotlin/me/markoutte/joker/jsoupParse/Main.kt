@@ -8,11 +8,9 @@ import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.net.URLClassLoader
-import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.writeBytes
 import kotlin.random.Random
@@ -31,7 +29,7 @@ fun main(args: Array<String>) {
     val className = parser.getOptionValue("class")
     val methodName = parser.getOptionValue("method")
     val classPath = parser.getOptionValue("classpath")
-    val timeout = parser.getOptionValue("timeout")?.toLong() ?: 10L
+    val timeout = parser.getOptionValue("timeout")?.toLong() ?: 50L
     val seed = parser.getOptionValue("seed")?.toInt() ?: Random.nextInt()
     val random = Random(seed)
 
@@ -47,14 +45,15 @@ fun main(args: Array<String>) {
     }
 
     val seeds = mutableMapOf<Int, String>()
+    repeat(100) { seeds[it] = grammarFuzzer(htmlGrammar) }
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
-        val inputValues = grammarFuzzer(htmlGrammar)
-        val inputValuesString =
-            "${javaMethod.name}: $inputValues"
+        val input = mutateString(seeds.values.random(random))
+        val inputString = "${javaMethod.name}: $input"
         try {
             ExecutionPath.id = 0
-            javaMethod.invoke(null, inputValues).apply {
-                seeds.putIfAbsent(ExecutionPath.id, inputValues)
+
+            javaMethod.invoke(null, input).apply {
+                seeds.putIfAbsent(ExecutionPath.id, input)
             }
         } catch (e: InvocationTargetException) {
             if (errors.add(e.targetException::class.qualifiedName!!)) {
@@ -64,7 +63,7 @@ fun main(args: Array<String>) {
                 Files.write(
                     path, listOf(
                         "${e.targetException.stackTraceToString()}\n",
-                        "$inputValuesString\n"
+                        "$inputString\n"
                     )
                 )
                 println("Saved to: ${path.fileName}")
@@ -164,33 +163,20 @@ fun loadJavaMethod(
     return javaMethod
 }
 
-fun generateInputValues(method: Method, data: ByteArray): Array<String> {
-    val buffer = ByteBuffer.wrap(data)
-    val parameterTypes = method.parameterTypes
-    return Array(parameterTypes.size) {
-        if (parameterTypes[it] == String::class.java) {
-            String(
-                ByteArray(
-                    buffer.get().toUByte().toInt() + 1
-                ) {
-                    buffer.get()
-                }, Charset.forName("koi8")
-            )
-        } else error("Cannot create value of type ${parameterTypes[it]}")
-    }
-}
 
 object ExecutionPath {
     @JvmField
     var id: Int = 0
 }
 
-fun Random.mutate(buffer: ByteArray): ByteArray = buffer.clone().apply {
-    val position = nextInt(0, size)
-    val repeat = nextInt((size - position))
-    val from = nextInt(-128, 127)
-    val until = nextInt(from + 1, 128)
-    repeat(repeat) { i ->
-        set(position + i, nextInt(from, until).toByte())
+
+fun mutateString(input: String, charset: Charset = Charsets.UTF_8): String {
+    val byteArray = input.toByteArray(charset)
+
+    repeat(Random.nextInt(2, 10)) {
+        val randomPosition = Random.nextInt(byteArray.size)
+        byteArray[randomPosition] = Random.nextInt(-128, 128).toByte()
     }
+
+    return String(byteArray, charset)
 }
