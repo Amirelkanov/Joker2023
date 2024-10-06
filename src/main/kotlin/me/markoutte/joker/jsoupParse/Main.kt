@@ -45,8 +45,9 @@ fun main(args: Array<String>) {
     }
 
     val seeds = mutableMapOf<Int, String>()
-    val grammarFuzzer = GrammarFuzzer(htmlGrammar(random))
-    repeat(100) { seeds[it] = grammarFuzzer.generateInput() }
+    val grammarFuzzer =
+        ProbabilisticGrammarFuzzer(probabilisticHtmlGrammar(random), random)
+    repeat(1000) { seeds[it] = grammarFuzzer.fuzz() }
 
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
         val input = mutateString(seeds.values.random(random), random)

@@ -1,14 +1,33 @@
 package me.markoutte.joker.jsoupParse
 
-typealias Grammar = Map<String, List<String>>
+import kotlin.random.Random
 
+typealias ProbabilisticGrammar = Map<String, List<Pair<String, Double>>>
 
-class GrammarFuzzer(val grammar: Grammar) {
+class ProbabilisticGrammarFuzzer(
+    val grammar: ProbabilisticGrammar,
+    val random: Random
+) {
+
     private fun nonterminals(expansion: String): List<String> {
         return Regex("\\[[^\\[\\]]+\\]").findAll(expansion).map { it.value }.toList()
     }
 
-    fun generateInput(
+    private fun selectProbabilisticExpansion(expansions: List<Pair<String, Double>>): String {
+        val totalWeight = expansions.sumOf { it.second }
+        val randomPoint = random.nextDouble(totalWeight)
+
+        var cumulativeWeight = 0.0
+        for (expansion in expansions) {
+            cumulativeWeight += expansion.second
+            if (randomPoint <= cumulativeWeight) {
+                return expansion.first
+            }
+        }
+        return expansions.last().first
+    }
+
+    fun fuzz(
         startSymbol: String = "[start]",
         maxNumOfNonterminals: Int = 100,
         maxExpansionTrials: Int = 100,
@@ -21,7 +40,8 @@ class GrammarFuzzer(val grammar: Grammar) {
             val symbolToExpand = nonterminals(term).random()
             val expansions = grammar[symbolToExpand]
                 ?: throw IllegalArgumentException("Unknown symbol $symbolToExpand")
-            val expansion = expansions.random()
+
+            val expansion = selectProbabilisticExpansion(expansions)
             val newTerm = term.replaceFirst(symbolToExpand, expansion)
 
             if (nonterminals(newTerm).size < maxNumOfNonterminals) {
@@ -40,4 +60,3 @@ class GrammarFuzzer(val grammar: Grammar) {
         return term
     }
 }
-
