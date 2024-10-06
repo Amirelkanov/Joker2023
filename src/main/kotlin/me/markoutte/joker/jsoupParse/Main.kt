@@ -45,7 +45,9 @@ fun main(args: Array<String>) {
     }
 
     val seeds = mutableMapOf<Int, String>()
-    repeat(100) { seeds[it] = grammarFuzzer(htmlGrammar) }
+    val grammarFuzzer = GrammarFuzzer(htmlGrammar)
+    repeat(100) { seeds[it] = grammarFuzzer.generateInput() }
+
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
         val input = mutateString(seeds.values.random(random))
         val inputString = "${javaMethod.name}: $input"

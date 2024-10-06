@@ -2,7 +2,6 @@ package me.markoutte.joker.jsoupParse
 
 import kotlin.random.Random
 
-typealias Grammar = Map<String, List<String>>
 
 val htmlGrammar: Grammar = mapOf(
     "[start]" to listOf("<!DOCTYPE html>[html-element]"),
@@ -100,44 +99,6 @@ val htmlGrammar: Grammar = mapOf(
     "[input-type]" to listOf("text", "password", "email", "submit"),
     "[eps]" to listOf("")
 )
-
-
-fun nonterminals(expansion: String): List<String> {
-    return Regex("\\[[^\\[\\]]+\\]").findAll(expansion).map { it.value }.toList()
-}
-
-fun grammarFuzzer(
-    grammar: Grammar,
-    startSymbol: String = "[start]",
-    maxNonterminals: Int = 100,
-    maxExpansionTrials: Int = 100,
-    log: Boolean = false
-): String {
-    var term = startSymbol
-    var expansionTrials = 0
-
-    while (nonterminals(term).isNotEmpty()) {
-        val symbolToExpand = nonterminals(term).random()
-        val expansions = grammar[symbolToExpand]
-            ?: throw IllegalArgumentException("Unknown symbol $symbolToExpand")
-        val expansion = expansions.random()
-        val newTerm = term.replaceFirst(symbolToExpand, expansion)
-
-        if (nonterminals(newTerm).size < maxNonterminals) {
-            term = newTerm
-            if (log) {
-                println("$symbolToExpand -> $expansion : $term")
-            }
-            expansionTrials = 0
-        } else {
-            expansionTrials++
-            if (expansionTrials >= maxExpansionTrials) {
-                break
-            }
-        }
-    }
-    return term
-}
 
 fun randomStringByKotlinCollectionRandom(fromLength: Int, toLength: Int) =
     List(fromLength + Random.nextInt(toLength)) {
