@@ -45,11 +45,11 @@ fun main(args: Array<String>) {
     }
 
     val seeds = mutableMapOf<Int, String>()
-    val grammarFuzzer = GrammarFuzzer(htmlGrammar)
+    val grammarFuzzer = GrammarFuzzer(htmlGrammar(random))
     repeat(100) { seeds[it] = grammarFuzzer.generateInput() }
 
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
-        val input = mutateString(seeds.values.random(random))
+        val input = mutateString(seeds.values.random(random), random)
         val inputString = "${javaMethod.name}: $input"
         try {
             ExecutionPath.id = 0
@@ -172,12 +172,16 @@ object ExecutionPath {
 }
 
 
-fun mutateString(input: String, charset: Charset = Charsets.UTF_8): String {
+fun mutateString(
+    input: String,
+    random: Random,
+    charset: Charset = Charsets.UTF_8
+): String {
     val byteArray = input.toByteArray(charset)
 
-    repeat(Random.nextInt(2, 10)) {
-        val randomPosition = Random.nextInt(byteArray.size)
-        byteArray[randomPosition] = Random.nextInt(-128, 128).toByte()
+    repeat(random.nextInt(2, 10)) {
+        val randomPosition = random.nextInt(byteArray.size)
+        byteArray[randomPosition] = random.nextInt(-128, 128).toByte()
     }
 
     return String(byteArray, charset)

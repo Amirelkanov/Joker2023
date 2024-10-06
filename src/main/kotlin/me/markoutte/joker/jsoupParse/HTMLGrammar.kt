@@ -3,7 +3,7 @@ package me.markoutte.joker.jsoupParse
 import kotlin.random.Random
 
 
-val htmlGrammar: Grammar = mapOf(
+fun htmlGrammar(random: Random): Grammar = mapOf(
     "[start]" to listOf("<!DOCTYPE html>[html-element]"),
     "[html-element]" to listOf("<html>[head][body]</html>"),
     "[head]" to listOf("<head><title>[text]</title>[meta][style][script]</head>"),
@@ -79,7 +79,7 @@ val htmlGrammar: Grammar = mapOf(
     ),
     "[text-element]" to listOf("[text]"),
     "[text]" to List(10) {
-        randomStringByKotlinCollectionRandom(10, 40)
+        randomStringByKotlinCollectionRandom(10, 40, random)
     },
     "[comment]" to listOf("<!-- [comment-text] -->"),
     "[comment-text]" to listOf("[text]", "[text]"),
@@ -100,8 +100,12 @@ val htmlGrammar: Grammar = mapOf(
     "[eps]" to listOf("")
 )
 
-fun randomStringByKotlinCollectionRandom(fromLength: Int, toLength: Int) =
-    List(fromLength + Random.nextInt(toLength)) {
+fun randomStringByKotlinCollectionRandom(
+    fromLength: Int,
+    toLength: Int,
+    random: Random
+) =
+    List(fromLength + random.nextInt(toLength)) {
         val charPool: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
         charPool.random()
     }.joinToString("")
