@@ -116,8 +116,8 @@ fun probabilisticHtmlGrammar(random: Random): ProbabilisticGrammar = mapOf(
     "[text-element]" to listOf(
         "[text]" to 1.0
     ),
-    "[text]" to List(10) {
-        randomStringByKotlinCollectionRandom(10, 40, random) to 1.0
+    "[text]" to List(100) {
+        randomStringByKotlinCollectionRandom(1, 100, random) to 0.01
     },
     "[comment]" to listOf(
         "<!-- [comment-text] -->" to 1.0

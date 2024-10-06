@@ -47,8 +47,8 @@ fun main(args: Array<String>) {
     val seeds = mutableMapOf<Int, String>()
     val grammarFuzzer =
         ProbabilisticGrammarFuzzer(probabilisticHtmlGrammar(random), random)
-    repeat(1000) {
-        seeds[it] = grammarFuzzer.fuzz(
+    repeat(10000) {
+        seeds[-it] = grammarFuzzer.fuzz(
             maxExpansionTrials = 200,
             maxNumOfNonterminals = 50000
         )
