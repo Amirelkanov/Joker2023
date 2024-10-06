@@ -37,7 +37,6 @@ fun main(args: Array<String>) {
 
     println("Running: $className.$methodName) with seed = $seed")
     val errors = mutableSetOf<String>()
-    val b = ByteArray(300)
     val start = System.nanoTime()
 
     val javaMethod = try {
@@ -47,26 +46,15 @@ fun main(args: Array<String>) {
         return
     }
 
-    // Как раз вот здесь
-    val seeds = mutableMapOf<Int, ByteArray>(
-        -1 to """"<html><head><title>First parse</title></head><body><p>Hello.</p></body></html>""".asByteArray(
-            b.size
-        )!!
-    )
-
+    val seeds = mutableMapOf<Int, String>()
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
-        val buffer = seeds.values.randomOrNull(random)?.let(Random::mutate)
-            ?: b.apply(random::nextBytes)
-        val inputValues = generateInputValues(javaMethod, buffer)
+        val inputValues = grammarFuzzer(htmlGrammar)
         val inputValuesString =
-            "${javaMethod.name}: ${inputValues.contentDeepToString()}"
+            "${javaMethod.name}: $inputValues"
         try {
             ExecutionPath.id = 0
-            javaMethod.invoke(null, *inputValues).apply {
-                val seedId = ExecutionPath.id
-                if (seeds.putIfAbsent(seedId, buffer) == null) {
-                    println("New seed added: ${seedId.toHexString()}")
-                }
+            javaMethod.invoke(null, inputValues).apply {
+                seeds.putIfAbsent(ExecutionPath.id, inputValues)
             }
         } catch (e: InvocationTargetException) {
             if (errors.add(e.targetException::class.qualifiedName!!)) {
@@ -76,11 +64,9 @@ fun main(args: Array<String>) {
                 Files.write(
                     path, listOf(
                         "${e.targetException.stackTraceToString()}\n",
-                        "$inputValuesString\n",
-                        "${buffer.contentToString()}\n",
+                        "$inputValuesString\n"
                     )
                 )
-                Files.write(path, buffer, StandardOpenOption.APPEND)
                 println("Saved to: ${path.fileName}")
             }
         }
@@ -178,26 +164,19 @@ fun loadJavaMethod(
     return javaMethod
 }
 
-fun generateInputValues(method: Method, data: ByteArray): Array<Any> {
+fun generateInputValues(method: Method, data: ByteArray): Array<String> {
     val buffer = ByteBuffer.wrap(data)
     val parameterTypes = method.parameterTypes
     return Array(parameterTypes.size) {
-        when (parameterTypes[it]) {
-            Int::class.java -> buffer.get().toInt()
-            IntArray::class.java -> IntArray(buffer.get().toUByte().toInt()) {
-                buffer.get().toInt()
-            }
-
-            String::class.java -> String(
+        if (parameterTypes[it] == String::class.java) {
+            String(
                 ByteArray(
                     buffer.get().toUByte().toInt() + 1
                 ) {
                     buffer.get()
                 }, Charset.forName("koi8")
             )
-
-            else -> error("Cannot create value of type ${parameterTypes[it]}")
-        }
+        } else error("Cannot create value of type ${parameterTypes[it]}")
     }
 }
 
@@ -214,21 +193,4 @@ fun Random.mutate(buffer: ByteArray): ByteArray = buffer.clone().apply {
     repeat(repeat) { i ->
         set(position + i, nextInt(from, until).toByte())
     }
-}
-
-fun Any.asByteArray(length: Int): ByteArray? = when (this) {
-    is String -> {
-        val bytes = toByteArray(Charset.forName("koi8"))
-        ByteArray(length) {
-            if (it == 0) {
-                (bytes.size - 1).toUByte().toByte()
-            } else if (it - 1 < bytes.size) {
-                bytes[it - 1]
-            } else {
-                0
-            }
-        }
-    }
-
-    else -> null
 }
