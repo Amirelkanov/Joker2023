@@ -29,7 +29,7 @@ fun main(args: Array<String>) {
     val className = parser.getOptionValue("class")
     val methodName = parser.getOptionValue("method")
     val classPath = parser.getOptionValue("classpath")
-    val timeout = parser.getOptionValue("timeout")?.toLong() ?: 50L
+    val timeout = parser.getOptionValue("timeout")?.toLong() ?: 60L
     val seed = parser.getOptionValue("seed")?.toInt() ?: Random.nextInt()
     val random = Random(seed)
 
@@ -47,10 +47,15 @@ fun main(args: Array<String>) {
     val seeds = mutableMapOf<Int, String>()
     val grammarFuzzer =
         ProbabilisticGrammarFuzzer(probabilisticHtmlGrammar(random), random)
-    repeat(1000) { seeds[it] = grammarFuzzer.fuzz() }
+    repeat(1000) {
+        seeds[it] = grammarFuzzer.fuzz(
+            maxExpansionTrials = 200,
+            maxNumOfNonterminals = 50000
+        )
+    }
 
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
-        val input = mutateString(seeds.values.random(random), random)
+        val input = mutateString(seeds.values.random(random), 10, random)
         val inputString = "${javaMethod.name}: $input"
         try {
             ExecutionPath.id = 0
@@ -175,12 +180,13 @@ object ExecutionPath {
 
 fun mutateString(
     input: String,
+    untilNumBytesToMutate: Int,
     random: Random,
     charset: Charset = Charsets.UTF_8
 ): String {
     val byteArray = input.toByteArray(charset)
 
-    repeat(random.nextInt(2, 10)) {
+    repeat(random.nextInt(1, untilNumBytesToMutate)) {
         val randomPosition = random.nextInt(byteArray.size)
         byteArray[randomPosition] = random.nextInt(-128, 128).toByte()
     }

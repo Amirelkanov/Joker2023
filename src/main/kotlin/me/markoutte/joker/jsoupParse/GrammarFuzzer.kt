@@ -29,8 +29,8 @@ class ProbabilisticGrammarFuzzer(
 
     fun fuzz(
         startSymbol: String = "[start]",
-        maxNumOfNonterminals: Int = 100,
-        maxExpansionTrials: Int = 100,
+        maxNumOfNonterminals: Int,
+        maxExpansionTrials: Int,
         verbose: Boolean = false
     ): String {
         var term = startSymbol
