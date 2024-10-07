@@ -1,6 +1,7 @@
 package me.markoutte.joker.jsoupParse
 
 import me.markoutte.joker.helpers.ComputeClassWriter
+import me.markoutte.joker.parse.mutate
 import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.objectweb.asm.*
@@ -11,6 +12,7 @@ import java.net.URLClassLoader
 import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.writeBytes
 import kotlin.random.Random
@@ -44,24 +46,25 @@ fun main(args: Array<String>) {
         return
     }
 
-    val seeds = mutableMapOf<Int, String>()
+    val seeds = mutableMapOf<Int, ByteArray>()
     val grammarFuzzer =
         ProbabilisticGrammarFuzzer(probabilisticHtmlGrammar(random), random)
-    repeat(10000) {
+    repeat(1000) {
         seeds[-it] = grammarFuzzer.fuzz(
             maxExpansionTrials = 200,
-            maxNumOfNonterminals = 50000
+            maxNumOfNonterminals = 1000
         )
     }
 
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
-        val input = mutateString(seeds.values.random(random), 10, random)
-        val inputString = "${javaMethod.name}: $input"
+        val buffer = seeds.values.random(random).let(random::mutate)
+        val inputString = buffer.decodeToString()
+
         try {
             ExecutionPath.id = 0
 
-            javaMethod.invoke(null, input).apply {
-                seeds.putIfAbsent(ExecutionPath.id, input)
+            javaMethod.invoke(null, inputString).apply {
+                seeds.putIfAbsent(ExecutionPath.id, buffer)
             }
         } catch (e: InvocationTargetException) {
             if (errors.add(e.targetException::class.qualifiedName!!)) {
@@ -71,7 +74,8 @@ fun main(args: Array<String>) {
                 Files.write(
                     path, listOf(
                         "${e.targetException.stackTraceToString()}\n",
-                        "$inputString\n"
+                        "${javaMethod.name}: $inputString\n",
+                        "${buffer.contentToString()}\n"
                     )
                 )
                 println("Saved to: ${path.fileName}")
@@ -177,19 +181,12 @@ object ExecutionPath {
     var id: Int = 0
 }
 
-
-fun mutateString(
-    input: String,
-    untilNumBytesToMutate: Int,
-    random: Random,
-    charset: Charset = Charsets.UTF_8
-): String {
-    val byteArray = input.toByteArray(charset)
-
-    repeat(random.nextInt(1, untilNumBytesToMutate)) {
-        val randomPosition = random.nextInt(byteArray.size)
-        byteArray[randomPosition] = random.nextInt(-128, 128).toByte()
+fun Random.mutate(buffer: ByteArray): ByteArray = buffer.clone().apply {
+    val position = nextInt(0, size)
+    val repeat = nextInt((size - position))
+    val from = nextInt(-128, 127)
+    val until = nextInt(from + 1, 128)
+    repeat(repeat) { i ->
+        set(position + i, nextInt(from, until).toByte())
     }
-
-    return String(byteArray, charset)
 }

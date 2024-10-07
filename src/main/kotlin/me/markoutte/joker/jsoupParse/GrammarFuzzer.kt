@@ -1,5 +1,6 @@
 package me.markoutte.joker.jsoupParse
 
+import java.nio.charset.Charset
 import kotlin.random.Random
 
 typealias ProbabilisticGrammar = Map<String, List<Pair<String, Double>>>
@@ -31,8 +32,9 @@ class ProbabilisticGrammarFuzzer(
         startSymbol: String = "[start]",
         maxNumOfNonterminals: Int,
         maxExpansionTrials: Int,
+        charset: Charset = Charsets.UTF_8,
         verbose: Boolean = false
-    ): String {
+    ): ByteArray {
         var term = startSymbol
         var expansionTrials = 0
 
@@ -57,6 +59,6 @@ class ProbabilisticGrammarFuzzer(
                 }
             }
         }
-        return term
+        return term.toByteArray(charset)
     }
 }

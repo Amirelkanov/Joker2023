@@ -2,13 +2,16 @@ import random
 import time
 import traceback
 
+import bs4
 import justext
+from html5lib import parse
 
 import GrammarFuzzer
 import HTMLGrammar
+from bs4 import BeautifulSoup
 
 def main():
-    timeout: int = 10
+    timeout: int = 50
     seed: int = int(time.time())
     r = random.Random()
 
@@ -26,8 +29,10 @@ def main():
         buf = mutate_string(r.choice(list(seeds.values())), 10, r)
         input_data = buf.decode('utf-8', errors='replace')
         try:
-            justext.justext(input_data, justext.get_stoplist("English"))
-
+            soup = BeautifulSoup(input_data, 'html.parser')
+            bs4.ParserRejectedMarkup
+            list(soup.find_all(True))
+            soup.prettify()
             seeds[len(seeds) - 100 + 1] = input_data
         except Exception as e:
             error_name = type(e).__name__
