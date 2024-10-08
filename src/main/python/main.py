@@ -64,8 +64,8 @@ def main():
 
                 file.write(''.join(traceback.TracebackException.from_exception(
                     e).format()) + "\n")
-                file.write(input_data + "\n\n")
-                file.write(str(list(buf)) + "\n")
+                file.write(f"String input: {input_data}\n\n")
+                file.write(f"Bytearray input: {list(buf)}\n")
 
                 file.close()
 
