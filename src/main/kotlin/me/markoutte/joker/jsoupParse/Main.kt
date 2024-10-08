@@ -4,6 +4,7 @@ import me.markoutte.joker.helpers.ComputeClassWriter
 import me.markoutte.joker.jsoupParse.Grammar.ProbabilisticGrammarFuzzer
 import me.markoutte.joker.jsoupParse.Grammar.probabilisticHtmlGrammar
 import me.markoutte.joker.jsoupParse.Mutation.mutate
+import me.markoutte.joker.jsoupParse.Mutation.mutationTechniques
 import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.objectweb.asm.*
@@ -52,7 +53,7 @@ fun main(args: Array<String>) {
     repeat(100) {
         seeds[-it] = grammarFuzzer.fuzz(
             maxExpansionTrials = 200,
-            maxNumOfNonterminals = 1000
+            maxNumOfNonterminals = 5000
         )
     }
 
@@ -61,7 +62,6 @@ fun main(args: Array<String>) {
         val inputString = buffer.decodeToString()
         try {
             ExecutionPath.id = 0
-
             javaMethod.invoke(null, inputString).apply {
                 seeds.putIfAbsent(ExecutionPath.id, buffer)
             }
