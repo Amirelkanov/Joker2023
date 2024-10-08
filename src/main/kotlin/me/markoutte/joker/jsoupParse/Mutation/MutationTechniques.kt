@@ -14,7 +14,7 @@ fun shuffleBuffPart(random: Random, buffer: ByteArray) =
         }
     }
 
-fun flipRandomBit(random: Random, buffer: ByteArray) =
+fun flipBit(random: Random, buffer: ByteArray) =
     buffer.clone().apply {
         val position = random.nextInt(0, size)
         val bitPosition = random.nextInt(0, 8)
@@ -24,19 +24,15 @@ fun flipRandomBit(random: Random, buffer: ByteArray) =
         )
     }
 
-fun changeBytes(random: Random, buffer: ByteArray) = buffer.clone().apply {
+fun changeByte(random: Random, buffer: ByteArray) = buffer.clone().apply {
     val position = random.nextInt(0, size)
-    val repeat = random.nextInt((size - position))
     val from = random.nextInt(-128, 127)
     val until = random.nextInt(from + 1, 128)
-    repeat(repeat) { i ->
-        set(position + i, random.nextInt(from, until).toByte())
-    }
+    set(position, random.nextInt(from, until).toByte())
 }
 
-fun deleteRandomBytes(random: Random, buffer: ByteArray): ByteArray {
-    if (buffer.size <= 1) return buffer
-    val numBytesToDelete = random.nextInt(1, buffer.size)
-    val positionsToDelete = (buffer.indices).shuffled(random).take(numBytesToDelete).sortedDescending()
-    return buffer.filterIndexed { index, _ -> index !in positionsToDelete }.toByteArray()
+fun deleteByte(random: Random, buffer: ByteArray): ByteArray {
+    if (buffer.isEmpty()) return buffer
+    val position = random.nextInt(buffer.size)
+    return buffer.filterIndexed { index, _ -> index != position }.toByteArray()
 }

@@ -5,9 +5,9 @@ import kotlin.random.Random
 
 val mutationTechniques = listOf(
     ::shuffleBuffPart,
-    ::flipRandomBit,
-    ::changeBytes,
-    ::deleteRandomBytes
+    ::flipBit,
+    ::changeByte,
+    ::deleteByte
 )
 
 fun mutate(random: Random, buffer: ByteArray): ByteArray =

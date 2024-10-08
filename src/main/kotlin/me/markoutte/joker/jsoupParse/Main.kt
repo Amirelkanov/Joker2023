@@ -4,7 +4,6 @@ import me.markoutte.joker.helpers.ComputeClassWriter
 import me.markoutte.joker.jsoupParse.Grammar.ProbabilisticGrammarFuzzer
 import me.markoutte.joker.jsoupParse.Grammar.probabilisticHtmlGrammar
 import me.markoutte.joker.jsoupParse.Mutation.mutate
-import me.markoutte.joker.jsoupParse.Mutation.mutationTechniques
 import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.objectweb.asm.*
