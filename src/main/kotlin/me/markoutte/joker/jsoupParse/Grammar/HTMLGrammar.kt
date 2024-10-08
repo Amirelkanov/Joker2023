@@ -1,4 +1,4 @@
-package me.markoutte.joker.jsoupParse
+package me.markoutte.joker.jsoupParse.Grammar
 
 import kotlin.random.Random
 
@@ -120,10 +120,8 @@ fun probabilisticHtmlGrammar(random: Random): ProbabilisticGrammar = mapOf(
         randomStringByKotlinCollectionRandom(1, 100, random) to 0.01
     },
     "[comment]" to listOf(
-        "<!-- [comment-text] -->" to 1.0
-    ),
-    "[comment-text]" to listOf(
-        "[text]" to 1.0
+        "<!-- [element] -->" to 0.2,
+        "<!-- [text] -->" to 0.8,
     ),
     "[list-element]" to listOf(
         "<ul>[list-items]</ul>" to 1.0

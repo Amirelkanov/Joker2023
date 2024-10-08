@@ -1,7 +1,9 @@
 package me.markoutte.joker.jsoupParse
 
 import me.markoutte.joker.helpers.ComputeClassWriter
-import me.markoutte.joker.parse.mutate
+import me.markoutte.joker.jsoupParse.Grammar.ProbabilisticGrammarFuzzer
+import me.markoutte.joker.jsoupParse.Grammar.probabilisticHtmlGrammar
+import me.markoutte.joker.jsoupParse.Mutation.mutate
 import org.apache.commons.cli.DefaultParser
 import org.apache.commons.cli.Options
 import org.objectweb.asm.*
@@ -9,10 +11,8 @@ import java.io.File
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.net.URLClassLoader
-import java.nio.charset.Charset
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
 import java.util.concurrent.TimeUnit
 import kotlin.io.path.writeBytes
 import kotlin.random.Random
@@ -31,7 +31,7 @@ fun main(args: Array<String>) {
     val className = parser.getOptionValue("class")
     val methodName = parser.getOptionValue("method")
     val classPath = parser.getOptionValue("classpath")
-    val timeout = parser.getOptionValue("timeout")?.toLong() ?: 60L
+    val timeout = parser.getOptionValue("timeout")?.toLong() ?: 10L
     val seed = parser.getOptionValue("seed")?.toInt() ?: Random.nextInt()
     val random = Random(seed)
 
@@ -49,7 +49,7 @@ fun main(args: Array<String>) {
     val seeds = mutableMapOf<Int, ByteArray>()
     val grammarFuzzer =
         ProbabilisticGrammarFuzzer(probabilisticHtmlGrammar(random), random)
-    repeat(1000) {
+    repeat(100) {
         seeds[-it] = grammarFuzzer.fuzz(
             maxExpansionTrials = 200,
             maxNumOfNonterminals = 1000
@@ -57,9 +57,8 @@ fun main(args: Array<String>) {
     }
 
     while (System.nanoTime() - start < TimeUnit.SECONDS.toNanos(timeout)) {
-        val buffer = seeds.values.random(random).let(random::mutate)
+        val buffer = mutate(random, seeds.values.random(random))
         val inputString = buffer.decodeToString()
-
         try {
             ExecutionPath.id = 0
 
@@ -179,14 +178,4 @@ fun loadJavaMethod(
 object ExecutionPath {
     @JvmField
     var id: Int = 0
-}
-
-fun Random.mutate(buffer: ByteArray): ByteArray = buffer.clone().apply {
-    val position = nextInt(0, size)
-    val repeat = nextInt((size - position))
-    val from = nextInt(-128, 127)
-    val until = nextInt(from + 1, 128)
-    repeat(repeat) { i ->
-        set(position + i, nextInt(from, until).toByte())
-    }
 }
