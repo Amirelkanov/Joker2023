@@ -2,7 +2,6 @@ import random
 import re
 from typing import List, Tuple
 
-# Type alias for clarity
 ProbabilisticGrammar = dict[str, list[tuple[str, float]]]
 
 
@@ -15,18 +14,15 @@ class ProbabilisticGrammarFuzzer:
     def nonterminals(self, expansion: str) -> List[str]:
         return re.findall(r"\[[^\[\]]+\]", expansion)
 
-    def select_probabilistic_expansion(self,
-                                       expansions: List[Tuple[str, float]]) -> str:
-        total_weight = sum(weight for _, weight in expansions)
-        random_point = self.random.uniform(0, total_weight)
-
-        cumulative_weight = 0.0
-        for expansion, weight in expansions:
-            cumulative_weight += weight
-            if random_point <= cumulative_weight:
-                return expansion
-        return expansions[-1][
-            0]  # Fallback to last expansion in case of rounding errors
+    def select_probabilistic_expansion(
+            self, expansions: List[Tuple[str, float]]
+    ) -> str:
+        expansions_dict = dict(expansions)
+        selected_expansion = self.random.choices(
+            population=list(expansions_dict.items()),
+            weights=list(expansions_dict.values())
+        )
+        return selected_expansion[0][0]
 
     def fuzz(self, start_symbol: str = "[start]", max_num_of_nonterminals: int = 10,
              max_expansion_trials: int = 100, verbose: bool = False) -> str:

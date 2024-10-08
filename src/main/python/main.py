@@ -1,33 +1,58 @@
+import argparse
 import random
 import time
 import traceback
+from importlib import import_module
 
-from pyquery import PyQuery as pq
-from lxml import html
-import GrammarFuzzer
-import HTMLGrammar
+from src.main.python.Grammar import GrammarFuzzer, HTMLGrammar
+from src.main.python.Mutation.mutation import mutate
 
 
+# -mod AdvancedHTMLParser -c AdvancedHTMLParser -m parseStr
 def main():
-    timeout: int = 50
-    seed: int = int(time.time())
-    r = random.Random()
+    parser = argparse.ArgumentParser(description="Fuzzing options")
 
-    print(f"Running: html5lib.parse with seed = {seed}")
+    parser.add_argument("-mod", "--module_name", required=True,
+                        help="Python module name")
+    parser.add_argument("-c", "--class_name", required=True,
+                        help="Python class name")
+    parser.add_argument("-m", "--method_name", required=True,
+                        help="Method to be tested")
+    parser.add_argument("-t", "--timeout", type=int, default=10,
+                        help="Maximum time for fuzzing in seconds")
+    parser.add_argument("-s", "--seed", type=int, default=int(time.time()),
+                        help="The source of randomness")
 
+    args = parser.parse_args()
+    module_name = args.module_name
+    class_name = args.class_name
+    method_name = args.method_name
+    timeout = args.timeout
+    seed = args.seed
+
+    r = random.Random(seed)
+
+    print(f"Running: {module_name}.{class_name}#{method_name} with seed = {seed}")
+
+    try:
+        python_method = load_python_method(module_name, method_name, class_name)
+    except AttributeError:
+        print(f"Method {module_name}.{class_name}#{method_name} has not found.")
+        return
     errors = set()
     start = time.time()
 
     grammar = HTMLGrammar.probabilistic_html_grammar(r)
     seeds = {-i: GrammarFuzzer.ProbabilisticGrammarFuzzer(grammar, r).fuzz(
         max_expansion_trials=200,
-        max_num_of_nonterminals=1000)
-        for i in range(1000)}
-    while 1:
+        max_num_of_nonterminals=100)
+        for i in range(1000)
+    }
+    while (time.time() - start) < timeout:
         buf = mutate(r.choice(list(seeds.values())), r)
         input_data = buf.decode('utf-8', errors='replace')
         try:
-            pq(input_data)
+            python_method(input_data)
             seeds[len(seeds)] = input_data
         except Exception as e:
             error_name = type(e).__name__
@@ -49,60 +74,12 @@ def main():
     print(f"Time elapsed: {int((time.time() - start) * 1000)} ms")
 
 
-def insert_random_character(s: str, rand: random.Random) -> bytearray:
-    pos = rand.randint(0, len(s))
-    random_character = chr(rand.randrange(32, 127))
-    # print("Inserting", repr(random_character), "at", pos)
-    return bytearray((s[:pos] + random_character + s[pos:]).encode('utf-8'))
-
-
-def flip_random_character(s, rand: random.Random):
-    """Returns s with a random bit flipped in a random position"""
-    if s == "":
-        return bytearray(s.encode('utf-8'))
-
-    pos = rand.randint(0, len(s) - 1)
-    c = s[pos]
-    bit = 1 << rand.randint(0, 6)
-    new_c = chr(ord(c) ^ bit)
-    # print("Flipping", bit, "in", repr(c) + ", giving", repr(new_c))
-    return bytearray((s[:pos] + new_c + s[pos + 1:]).encode('utf-8'))
-
-
-def delete_random_character(s: str, rand: random.Random) -> bytearray:
-    """Returns s with a random character deleted"""
-    if s == "":
-        return bytearray(s.encode('utf-8'))
-
-    pos = rand.randint(0, len(s) - 1)
-    # print("Deleting", repr(s[pos]), "at", pos)
-    return bytearray((s[:pos] + s[pos + 1:]).encode('utf-8'))
-
-
-import random
-
-
-def shuffle_bytes(s: str, rand: random.Random) -> bytearray:
-    buffer = bytearray(s, 'utf-8')
-
-    if len(buffer) < 2:
-        return buffer
-
-    rand.shuffle(buffer)
-
-    return buffer
-
-
-def mutate(s: str, rand: random.Random) -> bytearray:
-    """Return s with a random mutation applied"""
-    mutators = [
-        delete_random_character,
-        insert_random_character,
-        flip_random_character,
-        shuffle_bytes
-    ]
-    mutator = random.choice(mutators)
-    return mutator(s, rand)
+def load_python_method(module_name, method_name, class_name):
+    module = import_module(module_name)
+    python_method = getattr(
+        getattr(module, class_name)() if class_name else module, method_name
+    )
+    return python_method
 
 
 if __name__ == '__main__':

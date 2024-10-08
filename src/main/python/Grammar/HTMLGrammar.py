@@ -1,9 +1,7 @@
 import random
 import string
-from typing import List, Dict, Tuple
 
-# Type alias for clarity
-ProbabilisticGrammar = dict[str, list[tuple[str, float]]]
+from src.main.python.Grammar.GrammarFuzzer import ProbabilisticGrammar
 
 
 def probabilistic_html_grammar(
